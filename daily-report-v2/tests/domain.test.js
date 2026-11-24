@@ -1,0 +1,8 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {validateReport,validateFile,canEdit,canReview,escapeHtml,today} from '../src/domain.js';
+const report={author_id:'alice',status:'draft',report_date:'2026-11-24',title:'점검 보고',today_work:''};
+test('draft supports unfinished content; submission requires real work text',()=>{assert.equal(validateReport(report),null);assert.match(validateReport(report,true),/오늘 한 일/);assert.equal(validateReport({...report,today_work:'점검 완료'},true),null);});
+test('employees can edit only their own draft or returned reports',()=>{assert.ok(canEdit(report,'alice'));assert.ok(canEdit({...report,status:'returned'},'alice'));assert.ok(!canEdit(report,'bob'));for(const status of ['submitted','approved'])assert.ok(!canEdit({...report,status},'alice'));});
+test('review requires manager, submitted report and a different author',()=>{assert.ok(canReview({...report,status:'submitted'},'manager','manager'));assert.ok(!canReview({...report,status:'submitted'},'alice','manager'));assert.ok(!canReview({...report,status:'submitted'},'bob','employee'));assert.ok(!canReview(report,'manager','manager'));});
+test('unsafe, oversized and empty files are rejected',()=>{assert.ok(validateFile({name:'report.html',size:10}));assert.ok(validateFile({name:'report.pdf',size:10485761}));assert.ok(validateFile({name:'report.pdf',size:0}));assert.equal(validateFile({name:'점검표.PDF',size:100}),null);});
+test('user content is escaped and KST date is ISO formatted',()=>{assert.equal(escapeHtml('<script>"&'), '&lt;script&gt;&quot;&amp;');assert.match(today(),/^\d{4}-\d{2}-\d{2}$/);});
